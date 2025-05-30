@@ -1,0 +1,7 @@
+
+- name: Jinja app dev
+  hosts: db
+  become: true
+  gather_facts: true
+  roles:
+    - jinjaap

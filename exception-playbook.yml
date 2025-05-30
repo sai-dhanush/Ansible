@@ -1,0 +1,6 @@
+- name: exception demo
+  hosts: db
+  become: true
+  gather_facts: true
+  roles:
+    - exception

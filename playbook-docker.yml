@@ -1,0 +1,90 @@
+- name: Install Docker and deploy Fast API
+  hosts: web
+  become: true
+  gather_facts: false
+  vars:
+    app_dir: /opt/fastapi-docker
+    image_name: fastapi-app
+    container_name: fastapi-container
+    ansible_user: ubuntu
+    exposed_port: 9000
+
+  tasks:
+    - name: update APT cache
+      apt:
+        update_cache: yes
+      register: apt_update
+      retries: 3
+      delay: 5
+      until: apt_update is succeeded
+      
+    - name: install docker
+      apt:
+        name: docker.io
+        state: present
+      register: docker_install
+      retries: 3
+      delay: 5
+      until: docker_install is succeeded
+
+    - name: ensure docker status up and enabled
+      service:
+        name: docker
+        state: started
+        enabled: true
+      register: docker_service
+      failed_when: docker_service.failed and "not found" not in docker_service.msg
+
+    - name: Add Current User to docker group
+      user:
+        name: "{{ansible_user}}"
+        groups: docker
+        append: yes
+      ignore_errors: true # dont fail if user is already in group
+
+    - name: create app directory
+      file:
+        path: "{{app_dir}}"
+        state: directory
+        owner: "{{ansible_user}}"
+
+    - name: copy Fast API Code
+      copy:
+        src: ./app/
+        dest: "{{app_dir}}"
+        owner: "{{ansible_user}}"
+        mode: '0755'
+      register: copy_result
+      failed_when: copy_result.failed and "No such file" in copy_result.msg
+
+
+    - name: Build Docker File 
+      
+      command: docker build -t {{image_name}} .
+      args:
+        chdir: "{{app_dir}}"
+      register: build_result
+      retries: 2
+      delay: 4
+      until: build_result.rc ==0
+
+    - name: stop and remove any exiting container
+      shell: |
+        docker rm -f {{container_name}} || true
+      ignore_errors: true
+
+    - name: run container
+      command: >
+        docker run -d --name {{container_name}}
+        -p {{exposed_port}}:8000 {{image_name}}
+      register: run_result
+      failed_when: "'Error' in run_result.stderr or run_result.rc !=0"
+
+    - name: wait for fast api is available
+      uri:
+        url: "http://localhost:{{exposed_port}}/welcome"
+        status_code: 200
+      register: healtcheck
+      retries: 10
+      delay: 3
+      until: healtcheck.status == 200

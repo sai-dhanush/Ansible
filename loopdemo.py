@@ -1,15 +1,16 @@
-user_array= []
+from abc import ABC, abstractmethod
 
-size = int(input("How many numbers you wana add: "))
+class Animal(ABC):
+    @property
+    @abstractmethod
+    def species(self):
+        pass  # Abstract property, must be implemented by subclasses
 
-for i in range(size):
-    num = int(input(f"Enter value: {i+1} "))
-    user_array.append(num)
+class Dog(Animal):
+    @property
+    def species(self):
+        return "Canine"
 
-print(user_array)
-
-for num in user_array:
-    if num%2==0:
-        print(f"{num} is Even number")
-    else:
-        print(f"{num} is odd number")
+# Instantiate the concrete subclass
+dog = Dog()
+print(dog.species)
