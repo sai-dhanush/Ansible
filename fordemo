@@ -1,0 +1,4 @@
+userName = ['a','abc']
+
+for uname in userName:
+    print(uname)
